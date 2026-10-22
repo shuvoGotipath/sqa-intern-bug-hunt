@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ShopNest</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M8 12h16l-2 12H10z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/demo/demo.css">
+  <script type="module" src="/demo/demo.js"></script>
+</head>
+<body>
+  <header class="sn-header">
+    <div class="sn-header-inner">
+      <a href="#/" class="sn-logo"><span aria-hidden="true">🛍️</span> ShopNest</a>
+      <nav class="sn-nav" aria-label="Main">
+        <a href="#/">Shop</a>
+        <a href="#/orders">Orders</a>
+        <a href="#/profile">Profile</a>
+        <a href="#/cart" class="sn-cart-link">Cart <span class="sn-badge" id="cart-badge">0</span></a>
+      </nav>
+      <div class="sn-account" id="account-area"></div>
+      <button class="sn-burger" id="burger" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">☰</button>
+    </div>
+    <nav class="sn-mobile-menu" id="mobile-menu" aria-label="Mobile" hidden>
+      <a href="#/">Shop</a>
+      <a href="#/profile">Profile</a>
+      <a href="#/orders">Orders</a>
+      <span id="mobile-account"></span>
+    </nav>
+  </header>
+  <div class="sn-promo">🚚 Free shipping on orders of <strong>$50 or more</strong> · Use code <strong>SAVE10</strong> for 10% off</div>
+  <main id="view" class="sn-main" tabindex="-1"></main>
+  <footer class="sn-footer">ShopNest is a demo store for testing purposes. No real orders, payments or accounts.</footer>
+  <div id="sn-toast" class="sn-toast" role="status" aria-live="polite"></div>
+</body>
+</html>

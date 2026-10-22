@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Hiring Admin</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231b1f2e'/%3E%3Cpath d='M9 22V12l7-4 7 4v10' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <script type="module" src="/admin/admin.js"></script>
+</head>
+<body>
+  <header class="ad-top">
+    <div class="ad-top-inner">
+      <a class="ad-brand" href="#/candidates">🐞 Bug Hunt · <span>Hiring admin</span></a>
+      <nav class="ad-nav" id="ad-nav" aria-label="Admin" hidden>
+        <a href="#/candidates" data-nav="candidates">Candidates</a>
+        <a href="#/answer-key" data-nav="answer-key">Answer key &amp; scoring</a>
+        <button class="btn btn-secondary btn-sm" id="logout">Log out</button>
+      </nav>
+    </div>
+  </header>
+  <main id="ad-main" class="container ad-main" tabindex="-1">
+    <div class="loading"><span class="spinner" aria-hidden="true"></span> Loading…</div>
+  </main>
+
+  <dialog id="cv-dialog" class="cv-dialog" aria-labelledby="cv-dialog-title">
+    <div class="dialog-head">
+      <h2 id="cv-dialog-title">CV preview</h2>
+      <div class="cv-dialog-actions">
+        <a class="btn btn-secondary btn-sm" id="cv-open-tab" target="_blank" rel="noopener">Open in new tab ↗</a>
+        <a class="btn btn-secondary btn-sm" id="cv-download">⬇ Download</a>
+        <button type="button" class="icon-btn" id="cv-close" aria-label="Close preview">×</button>
+      </div>
+    </div>
+    <div class="cv-frame-wrap">
+      <div class="loading" id="cv-loading"><span class="spinner" aria-hidden="true"></span> Loading CV…</div>
+      <iframe id="cv-frame" title="CV preview"></iframe>
+    </div>
+  </dialog>
+</body>
+</html>

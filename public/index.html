@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQA Intern Bug Hunt</title>
+  <meta name="description" content="Apply for the SQA Intern role by completing a hands-on bug-hunting challenge.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234338ca'/%3E%3Cpath d='M10 13h12v8a6 6 0 01-12 0zM13 10a3 3 0 016 0M7 16h3M22 16h3M7 22h3M22 22h3' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/portal.css">
+  <script type="module" src="/js/portal.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="SQA Intern Bug Hunt home">
+        <span class="brand-mark" aria-hidden="true">🐞</span>
+        <span><strong>Bug Hunt</strong><span class="brand-sub">SQA Intern Hiring Challenge</span></span>
+      </a>
+      <nav class="stepper" aria-label="Application progress">
+        <ol>
+          <li data-step="intro">Instructions</li>
+          <li data-step="challenge">Challenge</li>
+          <li data-step="review">Review</li>
+          <li data-step="apply">Apply</li>
+        </ol>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div id="boot" class="loading"><span class="spinner" aria-hidden="true"></span> Loading your progress…</div>
+    <div id="boot-error" class="container" hidden>
+      <div class="alert alert-error" role="alert"><strong>We couldn't load the challenge.</strong> <span data-msg></span> <button class="btn btn-sm btn-secondary" data-retry>Retry</button></div>
+    </div>
+
+    <!-- 1. Welcome -->
+    <section id="screen-welcome" class="screen container" hidden aria-labelledby="welcome-title">
+      <div class="hero">
+        <p class="eyebrow">We're hiring · SQA Intern</p>
+        <h1 id="welcome-title" tabindex="-1">Think like a tester. <span class="accent">Find the bugs.</span></h1>
+        <p class="lead">Instead of a long application form, we'd like to see how you test. You'll get a small online store called <strong>ShopNest</strong> that contains planted defects. Explore it, find issues and report them like a QA engineer. Submitting your findings unlocks the application form.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-go="rules">Read the rules &amp; start</button>
+        </div>
+        <ul class="facts" aria-label="Challenge facts">
+          <li><strong>~45–60 min</strong><span>suggested time, no hard limit</span></li>
+          <li><strong>No coding</strong><span>just a browser</span></li>
+          <li><strong>Auto-saved</strong><span>refresh-safe progress</span></li>
+        </ul>
+      </div>
+      <div class="how">
+        <article class="card how-card"><span class="how-num">1</span><h2>Explore</h2><p>Use the ShopNest demo like a real customer — and like a curious tester. Try normal paths, unusual inputs and different screen sizes.</p></article>
+        <article class="card how-card"><span class="how-num">2</span><h2>Report</h2><p>Write clear bug reports: steps to reproduce, expected vs. actual result, severity and priority. Quality beats quantity.</p></article>
+        <article class="card how-card"><span class="how-num">3</span><h2>Apply</h2><p>Review and submit your findings. The application form then unlocks — complete it and submit your application.</p></article>
+      </div>
+    </section>
+
+    <!-- 2. Rules -->
+    <section id="screen-rules" class="screen container narrow" hidden aria-labelledby="rules-title">
+      <div class="card">
+        <h1 id="rules-title" tabindex="-1">Challenge rules &amp; instructions</h1>
+        <ol class="rules">
+          <li><strong>Your mission:</strong> find defects in the ShopNest demo store — functional bugs, validation problems, boundary errors, confusing UI, incorrect messages and layout issues on small screens.</li>
+          <li><strong>Covered areas:</strong> registration &amp; login, profile, product listing &amp; search, cart, checkout and responsive layout.</li>
+          <li><strong>Report every issue</strong> with a clear title, the affected module, numbered steps to reproduce, expected result, actual result, severity and priority. Screenshots are optional but welcome.</li>
+          <li><strong>Quality over quantity.</strong> Reports are evaluated on correctness, reproducibility and clarity. Duplicate or vague reports earn little or nothing, and reports that describe intended behaviour count against you.</li>
+          <li><strong>Hints are available</strong> but each one you open lowers your score a little.</li>
+          <li><strong>Time is tracked</strong> for context only — careful work matters more than speed.</li>
+          <li><strong>Work on your own.</strong> No coding, special tools or paid software are needed. Your browser's built-in features are fine.</li>
+          <li><strong>Your progress is saved</strong> automatically on this browser. You can edit or delete reports until you submit. After submitting, reports are locked.</li>
+          <li>When you're done, open <em>Review &amp; submit</em>. Submitting the challenge <strong>unlocks</strong> the application form — your application is only sent once you submit that form too.</li>
+        </ol>
+        <div class="alert alert-info">
+          <strong>Test data you can use:</strong> demo account <code>demo@shopnest.test</code> / <code>Shop@1234</code>. You can also register new demo accounts. Payment is simulated — use any 16-digit test card number such as <code>4242 4242 4242 4242</code>. Nothing you enter in ShopNest is real.
+        </div>
+        <form id="start-form" novalidate>
+          <label class="check">
+            <input type="checkbox" name="acceptedRules" required>
+            <span>I have read the rules and will complete the challenge on my own.</span>
+          </label>
+          <div class="error" id="start-error" role="alert" hidden></div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" data-go="welcome">Back</button>
+            <button type="submit" class="btn btn-primary">Start challenge</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- 3. Workspace -->
+    <section id="screen-workspace" class="screen" hidden aria-labelledby="ws-title">
+      <h1 id="ws-title" class="sr-only" tabindex="-1">Bug hunting workspace</h1>
+      <div class="ws-toolbar">
+        <div class="ws-stats" role="group" aria-label="Challenge status">
+          <div class="stat"><span class="stat-label">Elapsed</span><span class="stat-value" id="timer" aria-live="off">00:00</span></div>
+          <div class="stat"><span class="stat-label">Reports</span><span class="stat-value" id="report-count">0</span></div>
+          <div class="stat"><span class="stat-label">Hints used</span><span class="stat-value" id="hint-count">0 / 3</span></div>
+        </div>
+        <div class="ws-actions">
+          <button class="btn btn-secondary btn-sm" id="open-hints">💡 Hints</button>
+          <button class="btn btn-secondary btn-sm" id="new-report">＋ New bug report</button>
+          <button class="btn btn-primary btn-sm" id="go-review">Review &amp; submit →</button>
+        </div>
+      </div>
+
+      <div class="ws-tabs" role="tablist" aria-label="Workspace panels">
+        <button role="tab" id="tab-app" aria-controls="panel-app" aria-selected="true">ShopNest app</button>
+        <button role="tab" id="tab-reports" aria-controls="panel-reports" aria-selected="false" tabindex="-1">My reports <span class="badge badge-primary" id="tab-report-count">0</span></button>
+      </div>
+
+      <div class="ws-grid">
+        <section class="ws-app card" id="panel-app" role="tabpanel" aria-labelledby="tab-app">
+          <div class="app-bar">
+            <div class="viewport-toggle" role="radiogroup" aria-label="Preview width">
+              <button role="radio" aria-checked="true" data-width="100%">Desktop</button>
+              <button role="radio" aria-checked="false" data-width="768px">Tablet</button>
+              <button role="radio" aria-checked="false" data-width="375px">Mobile</button>
+            </div>
+            <div class="app-bar-actions">
+              <button class="btn btn-ghost btn-sm" id="reload-demo" title="Reload the demo app">↻ Reload</button>
+              <button class="btn btn-ghost btn-sm" id="reset-demo" title="Reset accounts, cart and orders">Reset demo data</button>
+              <a class="btn btn-ghost btn-sm" href="/demo/" target="_blank" rel="noopener">Open in new tab ↗</a>
+            </div>
+          </div>
+          <div class="frame-wrap">
+            <iframe id="demo-frame" src="about:blank" title="ShopNest demo application under test"></iframe>
+          </div>
+        </section>
+
+        <aside class="ws-reports card" id="panel-reports" role="tabpanel" aria-labelledby="tab-reports">
+          <div class="panel-head">
+            <h2>My bug reports</h2>
+            <button class="btn btn-primary btn-sm" id="new-report-2">＋ New</button>
+          </div>
+          <div id="report-list" aria-live="polite"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 4. Review -->
+    <section id="screen-review" class="screen container" hidden aria-labelledby="review-title">
+      <div class="review-head">
+        <div>
+          <h1 id="review-title" tabindex="-1">Review your findings</h1>
+          <p class="muted">Check each report before submitting. After submission your reports are locked and evaluated.</p>
+        </div>
+        <button class="btn btn-secondary" data-go="workspace">← Back to testing</button>
+      </div>
+      <div id="review-warnings"></div>
+      <div id="review-list" class="review-list"></div>
+      <div class="card submit-card">
+        <form id="submit-form" novalidate>
+          <label class="check">
+            <input type="checkbox" name="confirm" required>
+            <span>I understand that after submitting I can no longer add, edit or remove bug reports.</span>
+          </label>
+          <div class="error" id="submit-error" role="alert" hidden></div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" data-go="workspace">Keep testing</button>
+            <button type="submit" class="btn btn-primary" id="submit-challenge">Submit challenge</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- 5. Application form (unlocked) -->
+    <section id="screen-apply" class="screen container narrow" hidden aria-labelledby="apply-title">
+      <div class="alert alert-success" role="status">
+        <strong>Challenge submitted — thank you!</strong> Your <span id="submitted-count">0</span> report(s) were saved and will be evaluated by our team. The application form is now unlocked.
+      </div>
+      <div class="card">
+        <h1 id="apply-title" tabindex="-1">SQA Intern application</h1>
+        <p class="muted">Fields marked <span class="req">*</span> are required. Your application is only sent when you press <em>Submit application</em>.</p>
+        <div id="apply-error" class="alert alert-error" role="alert" hidden></div>
+        <form id="apply-form" novalidate>
+          <div class="grid-2">
+            <div class="field">
+              <label for="a-fullName">Full name <span class="req">*</span></label>
+              <input id="a-fullName" name="fullName" type="text" autocomplete="name" required maxlength="100">
+            </div>
+            <div class="field">
+              <label for="a-email">Email address <span class="req">*</span></label>
+              <input id="a-email" name="email" type="email" autocomplete="email" required maxlength="254">
+            </div>
+            <div class="field">
+              <label for="a-phone">Phone number <span class="req">*</span></label>
+              <input id="a-phone" name="phone" type="tel" autocomplete="tel" required maxlength="20" aria-describedby="a-phone-hint">
+              <span class="hint" id="a-phone-hint">Include country code, e.g. +880 1712 345678</span>
+            </div>
+            <div class="field">
+              <label for="a-educationLevel">Current education level <span class="req">*</span></label>
+              <select id="a-educationLevel" name="educationLevel" required><option value="">Select…</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="a-institution">University or educational institution <span class="req">*</span></label>
+            <input id="a-institution" name="institution" type="text" autocomplete="organization" required maxlength="150">
+          </div>
+          <div class="field">
+            <label for="a-experience">Relevant experience <span class="muted">(optional)</span></label>
+            <textarea id="a-experience" name="experience" maxlength="2000" rows="3" aria-describedby="a-experience-hint"></textarea>
+            <span class="hint" id="a-experience-hint">Courses, projects, internships, testing communities, certifications…</span>
+          </div>
+          <div class="field">
+            <label for="a-profileUrl">LinkedIn or portfolio URL <span class="muted">(optional)</span></label>
+            <input id="a-profileUrl" name="profileUrl" type="url" inputmode="url" placeholder="https://" maxlength="300">
+          </div>
+          <div class="field">
+            <label for="a-whySqa">Why do you want to become an SQA Engineer? <span class="req">*</span></label>
+            <textarea id="a-whySqa" name="whySqa" required minlength="50" maxlength="1500" rows="5" aria-describedby="a-whySqa-count"></textarea>
+            <span class="hint" id="a-whySqa-count">0 / 1500 characters (minimum 50)</span>
+          </div>
+          <div class="field">
+            <label for="a-cv">CV / résumé <span class="req">*</span></label>
+            <input id="a-cv" name="cv" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required aria-describedby="a-cv-hint">
+            <span class="hint" id="a-cv-hint">PDF, DOC or DOCX · max 5 MB</span>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="apply-submit">Submit application</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- 6. Confirmation -->
+    <section id="screen-done" class="screen container narrow" hidden aria-labelledby="done-title">
+      <div class="card done">
+        <div class="done-icon" aria-hidden="true">✓</div>
+        <h1 id="done-title" tabindex="-1">Application submitted</h1>
+        <p class="lead" id="done-msg">Thank you for applying for the SQA Intern position.</p>
+        <p>Your reference number is <strong id="done-ref"></strong>. Please keep it for your records. Our hiring team reviews every challenge manually and will contact you by email about the next steps.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Report dialog -->
+  <dialog id="report-dialog" aria-labelledby="report-dialog-title">
+    <form id="report-form" novalidate>
+      <div class="dialog-head">
+        <h2 id="report-dialog-title">New bug report</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">×</button>
+      </div>
+      <div class="dialog-body">
+        <div id="report-error" class="alert alert-error" role="alert" hidden></div>
+        <div class="field">
+          <label for="r-title">Bug title <span class="req">*</span></label>
+          <input id="r-title" name="title" type="text" required maxlength="120" placeholder="Short, specific summary, e.g. “Search returns no results for lowercase text”">
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="r-module">Module / affected feature <span class="req">*</span></label>
+            <select id="r-module" name="module" required><option value="">Select…</option></select>
+          </div>
+          <div class="grid-2 tight">
+            <div class="field">
+              <label for="r-severity">Severity <span class="req">*</span></label>
+              <select id="r-severity" name="severity" required><option value="">Select…</option></select>
+            </div>
+            <div class="field">
+              <label for="r-priority">Priority <span class="req">*</span></label>
+              <select id="r-priority" name="priority" required><option value="">Select…</option></select>
+            </div>
+          </div>
+        </div>
+        <details class="legend">
+          <summary>Severity vs. priority — quick reminder</summary>
+          <p><strong>Severity</strong> = impact on the user/system (Critical: data loss, money, security or blocks core flow · High: major feature broken · Medium: feature partly wrong, workaround exists · Low: cosmetic/minor).<br><strong>Priority</strong> = how urgently it should be fixed (P1 immediately … P4 when convenient).</p>
+        </details>
+        <div class="field">
+          <label for="r-steps">Steps to reproduce <span class="req">*</span></label>
+          <textarea id="r-steps" name="steps" required maxlength="3000" rows="5" placeholder="1. Go to …&#10;2. Enter …&#10;3. Click …"></textarea>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="r-expected">Expected result <span class="req">*</span></label>
+            <textarea id="r-expected" name="expected" required maxlength="1500" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label for="r-actual">Actual result <span class="req">*</span></label>
+            <textarea id="r-actual" name="actual" required maxlength="1500" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="field">
+          <label for="r-evidence">Screenshot / evidence <span class="muted">(optional)</span></label>
+          <input id="r-evidence" name="evidence" type="file" accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="r-evidence-hint">
+          <span class="hint" id="r-evidence-hint">PNG, JPG, GIF or WebP · max 3 MB. Tip: your OS screenshot tool works fine.</span>
+          <div id="r-evidence-current" class="evidence-current" hidden></div>
+        </div>
+        <p class="hint draft-note" id="draft-note" hidden>Draft restored from your last session.</p>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-secondary" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="report-save">Save report</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Confirm dialog -->
+  <dialog id="confirm-dialog" class="small" aria-labelledby="confirm-title">
+    <div class="dialog-head"><h2 id="confirm-title">Are you sure?</h2></div>
+    <div class="dialog-body"><p id="confirm-msg"></p></div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-secondary" value="cancel" data-answer="no">Cancel</button>
+      <button type="button" class="btn btn-primary" value="ok" data-answer="yes" id="confirm-ok">Confirm</button>
+    </div>
+  </dialog>
+
+  <!-- Hints dialog -->
+  <dialog id="hints-dialog" aria-labelledby="hints-title">
+    <div class="dialog-head">
+      <h2 id="hints-title">Hints</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">×</button>
+    </div>
+    <div class="dialog-body">
+      <p class="muted">Hints point you toward testing techniques — not to exact bugs. <strong>Each hint you reveal reduces your final score.</strong></p>
+      <ol id="hint-list" class="hint-list"></ol>
+      <p id="hints-none" class="muted" hidden>You haven't revealed any hints yet.</p>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-secondary" data-close>Close</button>
+      <button type="button" class="btn btn-primary" id="reveal-hint">Reveal next hint (score penalty)</button>
+    </div>
+  </dialog>
+</body>
+</html>
