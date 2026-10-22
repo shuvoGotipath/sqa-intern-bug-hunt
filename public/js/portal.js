@@ -553,9 +553,9 @@ function validateApplicationClient(form) {
   if (v('profileUrl') && !/^https?:\/\/[^\s/]+\.[^\s]+/i.test(v('profileUrl'))) errors.profileUrl = 'Enter a full URL starting with https://, or leave it blank.';
   if (v('whySqa').length < 50) errors.whySqa = `Please write at least 50 characters (currently ${v('whySqa').length}).`;
   const file = form.elements.cv.files[0];
-  if (!file) errors.cv = 'Please upload your CV (PDF, DOC or DOCX, max 5 MB).';
+  if (!file) errors.cv = 'Please upload your CV (PDF, DOC or DOCX, max 4 MB).';
   else if (!/\.(pdf|docx?)$/i.test(file.name)) errors.cv = 'CV must be a PDF, DOC or DOCX file.';
-  else if (file.size > 5 * 1024 * 1024) errors.cv = 'CV must be 5 MB or smaller.';
+  else if (file.size > 4 * 1024 * 1024) errors.cv = 'CV must be 4 MB or smaller.';
   return errors;
 }
 

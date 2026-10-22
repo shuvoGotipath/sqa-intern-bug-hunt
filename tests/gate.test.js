@@ -178,9 +178,9 @@ describe('application submission', () => {
     assert.equal(exe.status, 422);
   });
 
-  test('rejects CVs larger than 5 MB', async () => {
+  test('rejects CVs larger than 4 MB', async () => {
     const c = await unlocked();
-    const big = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(5 * 1024 * 1024 + 10)]);
+    const big = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(4 * 1024 * 1024 + 10)]);
     const res = await c.post('/api/application', { form: applicationForm({ email: 'big@example.com' }, { buffer: big, name: 'cv.pdf' }) });
     assert.equal(res.status, 413);
   });

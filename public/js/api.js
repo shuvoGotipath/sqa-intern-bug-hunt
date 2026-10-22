@@ -29,7 +29,12 @@ export async function api(url, { method = 'GET', body, form } = {}) {
   try {
     data = await res.json();
   } catch {}
-  if (!res.ok) throw new ApiError(res.status, data?.error || `Request failed (${res.status}).`, data?.details);
+  if (!res.ok) {
+    // Our API returns { error: "text" }; hosting platforms may return { error: { message } }.
+    const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+    const fallback = res.status === 404 ? 'The server API could not be reached (404). Please contact the hiring team.' : `Request failed (${res.status}).`;
+    throw new ApiError(res.status, message || fallback, data?.details);
+  }
   return data;
 }
 

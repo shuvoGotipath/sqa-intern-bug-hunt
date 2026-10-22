@@ -60,6 +60,22 @@ There are 85 tests (Node's built-in test runner). They run against a throwaway i
 - **Admin** (`tests/admin.test.js`): authentication, rate limiting, filters, candidate detail, CV/evidence download, status changes, verdict overrides, CSV export (including formula-injection guarding) and logout.
 - **Demo app** (`tests/demo.test.js`): every planted defect stays reproducible, and behaviour that is meant to be correct stays correct, so candidates aren't penalised for unintended bugs.
 
+## Deploying to Vercel
+
+The repository includes `vercel.json` and a serverless entry point, `api/index.js`. Vercel serves the pages in `public/` directly and sends `/api/*`, `/demo-api/*` and `/healthz` to the Express app.
+
+1. Import the GitHub repository in Vercel and keep the default settings. No build command is needed.
+2. Under **Project → Settings → Environment Variables**, add the following for Production (and Preview if you use it):
+   `MONGODB_URI`, `MONGODB_DB`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
+   You don't need `NODE_ENV`, `SECURE_COOKIES` or `TRUST_PROXY`, because they're set automatically on Vercel.
+3. In MongoDB Atlas, open **Network Access** and allow `0.0.0.0/0`. Vercel functions don't have fixed IP addresses.
+4. Redeploy. Opening `https://<your-app>.vercel.app/healthz` should return `{"ok":true}`. If a setting is missing, the response names it.
+
+Vercel limits:
+
+- Request bodies are limited to 4.5 MB, so CV uploads are capped at 4 MB.
+- Login and start rate limits are kept per function instance, so on Vercel they're weaker than on a single server. Add Vercel's firewall rate limiting if you need strict limits.
+
 ## Deployment
 
 The app is a single stateless Node process. Data lives in MongoDB and files in S3, so it runs on any VPS or PaaS (Render, Railway, Fly.io, a plain VM) without a persistent disk.
@@ -95,7 +111,7 @@ location / {
 | Report tampering | Reports are validated on the server, scoped to the session, and locked after submission |
 | CSRF | SameSite cookies and a required `X-Requested-With` header on every state-changing API call |
 | Admin access | Credentials from env with a constant-time comparison. Login is rate limited (10 attempts / 15 min). Sessions are HttpOnly + SameSite=Strict, expire after 8 hours and are revocable |
-| Uploads | Type is checked by file signature, not file name. Limits: CV PDF/DOC/DOCX up to 5 MB, evidence PNG/JPG/GIF/WebP up to 3 MB. Files get random names in a private bucket and are served only through authorised routes |
+| Uploads | Type is checked by file signature, not file name. Limits: CV PDF/DOC/DOCX up to 4 MB, evidence PNG/JPG/GIF/WebP up to 3 MB. Files get random names in a private bucket and are served only through authorised routes |
 | XSS | All user content is HTML-escaped. Strict CSP (`script-src 'self'`) plus `nosniff` and frame restrictions |
 | CSV export | Spreadsheet formula injection is neutralised |
 
@@ -122,7 +138,8 @@ The **Answer key & scoring** tab in the dashboard shows these rules.
 
 ```
 server/
-  index.js            entry point (.env loading, prod safety checks)
+  index.js            standalone server entry point
+  config.js           environment → app settings (shared with Vercel)
   app.js              Express app factory
   db.js               MongoDB connection and indexes
   storage.js          S3 / local-disk file storage
@@ -138,4 +155,6 @@ public/
   demo/                            ShopNest demo store (system under test)
   admin/                           admin dashboard
 tests/                             node:test suites
+api/index.js                       Vercel serverless entry point
+vercel.json                        Vercel routing and security headers
 ```

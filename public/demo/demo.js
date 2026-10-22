@@ -18,7 +18,8 @@ async function http(url, { method = 'GET', body } = {}) {
     throw Object.assign(new Error('Network error. Please try again.'), { status: 0 });
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || 'Something went wrong.'), { status: res.status, details: data.details || {} });
+  const message = typeof data.error === 'string' ? data.error : data.error?.message;
+  if (!res.ok) throw Object.assign(new Error(message || 'Something went wrong.'), { status: res.status, details: data.details || {} });
   return data;
 }
 

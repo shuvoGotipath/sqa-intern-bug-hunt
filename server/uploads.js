@@ -3,7 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { HttpError } from './security.js';
 
-export const CV_MAX_BYTES = 5 * 1024 * 1024;
+export const CV_MAX_BYTES = 4 * 1024 * 1024;
 export const EVIDENCE_MAX_BYTES = 3 * 1024 * 1024;
 
 /** File types are verified by their leading bytes, not by the client-provided name or MIME type. */
@@ -44,7 +44,7 @@ export function handleUpload(middleware, label, maxBytes) {
 }
 
 export function checkCv(file) {
-  if (!file) return 'Please upload your CV (PDF, DOC or DOCX, max 5 MB).';
+  if (!file) return 'Please upload your CV (PDF, DOC or DOCX, max 4 MB).';
   const ext = path.extname(file.originalname || '').toLowerCase();
   const expected = CV_TYPES[ext];
   const sig = sniff(file.buffer, ['pdf', 'docx', 'doc']);

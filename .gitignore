@@ -4,3 +4,6 @@ uploads/*
 !uploads/.gitkeep
 .DS_Store
 data/
+*.env
+!.env.example
+.vercel
