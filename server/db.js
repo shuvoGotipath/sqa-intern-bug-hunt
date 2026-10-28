@@ -24,6 +24,7 @@ export async function openDatabase(uri, dbName) {
   await Promise.all([
     col.sessions.createIndex({ tokenHash: 1 }, { unique: true }),
     col.sessions.createIndex({ status: 1 }),
+    col.sessions.createIndex({ deletedAt: 1 }),
     col.reports.createIndex({ sessionId: 1, createdAt: 1 }),
     col.applications.createIndex({ sessionId: 1 }, { unique: true }),
     col.applications.createIndex({ email: 1 }, { unique: true }),

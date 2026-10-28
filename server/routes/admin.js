@@ -80,6 +80,7 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
       totalBugs: BUGS.length,
       unmatched: ev?.unmatched ?? null,
       duplicates: ev?.duplicates ?? null,
+      deletedAt: s.deletedAt || null,
       application: app
         ? { id: app._id, fullName: app.fullName, email: app.email, phone: app.phone, institution: app.institution, educationLevel: app.educationLevel, status: app.status, appliedAt: app.createdAt }
         : null,
@@ -87,14 +88,17 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
   }
 
   async function listCandidates(query) {
+    const inTrash = query.trash === '1';
     const [sessions, apps, counts] = await Promise.all([
-      col.sessions.find({}, { projection: { tokenHash: 0, 'evaluation.reports': 0 } }).toArray(),
+      // `deletedAt: null` also matches records that were never trashed (field absent).
+      col.sessions.find({ deletedAt: inTrash ? { $ne: null } : null }, { projection: { tokenHash: 0, 'evaluation.reports': 0 } }).toArray(),
       col.applications.find({}, { projection: { whySqa: 0, experience: 0 } }).toArray(),
       reportCounts(),
     ]);
     const appBySession = new Map(apps.map((a) => [a.sessionId, a]));
     let rows = sessions.map((s) => summarize(s, appBySession.get(s._id), counts[s._id] || 0));
-    rows.sort((a, b) => String(b.application?.appliedAt || b.submittedAt || b.startedAt).localeCompare(String(a.application?.appliedAt || a.submittedAt || a.startedAt)));
+    const sortKey = (r) => String((inTrash && r.deletedAt) || r.application?.appliedAt || r.submittedAt || r.startedAt);
+    rows.sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
     const { stage, status, minScore, maxScore: maxS, q } = query;
     if (stage && stage !== 'all') rows = rows.filter((r) => r.stage === stage);
     if (status && status !== 'all') rows = rows.filter((r) => r.application?.status === status);
@@ -108,13 +112,14 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
   }
 
   router.get('/candidates', async (req, res) => {
-    const [stages, apps] = await Promise.all([
-      col.sessions.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(),
-      col.applications.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(),
+    const [stages, apps, trashed] = await Promise.all([
+      col.sessions.aggregate([{ $match: { deletedAt: null } }, { $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(),
+      col.applications.aggregate([{ $match: { deletedAt: null } }, { $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(),
+      col.sessions.countDocuments({ deletedAt: { $ne: null } }),
     ]);
     res.json({
       candidates: await listCandidates(req.query),
-      stats: { stages: Object.fromEntries(stages.map((r) => [r._id, r.n])), applications: Object.fromEntries(apps.map((r) => [r._id, r.n])) },
+      stats: { stages: Object.fromEntries(stages.map((r) => [r._id, r.n])), applications: Object.fromEntries(apps.map((r) => [r._id, r.n])), trashed },
     });
   });
 
@@ -152,6 +157,57 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
   }
 
   router.get('/candidates/:id', async (req, res) => res.json(await candidateDetail(req.params.id)));
+
+  // ---------- Trash ----------
+  // Moving to trash hides the candidate everywhere (list, stats, export) but keeps all data.
+  router.post('/candidates/:id/trash', async (req, res) => {
+    const id = String(req.params.id);
+    const deletedAt = new Date().toISOString();
+    const result = await col.sessions.updateOne({ _id: id, deletedAt: null }, { $set: { deletedAt } });
+    if (result.matchedCount === 0) {
+      if (await col.sessions.findOne({ _id: id }, { projection: { _id: 1 } })) throw new HttpError(409, 'This candidate is already in the trash.');
+      throw new HttpError(404, 'Candidate not found.');
+    }
+    await col.applications.updateOne({ sessionId: id }, { $set: { deletedAt } });
+    res.json(await candidateDetail(id));
+  });
+
+  router.post('/candidates/:id/restore', async (req, res) => {
+    const id = String(req.params.id);
+    const result = await col.sessions.updateOne({ _id: id, deletedAt: { $ne: null } }, { $unset: { deletedAt: '' } });
+    if (result.matchedCount === 0) throw new HttpError(404, 'This candidate is not in the trash.');
+    await col.applications.updateOne({ sessionId: id }, { $unset: { deletedAt: '' } });
+    res.json(await candidateDetail(id));
+  });
+
+  // Permanent delete: only allowed from the trash. Removes all records and stored files.
+  router.delete('/candidates/:id', async (req, res) => {
+    const id = String(req.params.id);
+    const s = await col.sessions.findOne({ _id: id }, { projection: { deletedAt: 1 } });
+    if (!s) throw new HttpError(404, 'Candidate not found.');
+    if (!s.deletedAt) throw new HttpError(409, 'Move this candidate to the trash before deleting permanently.');
+    const [app, reports] = await Promise.all([
+      col.applications.findOne({ sessionId: id }, { projection: { cv: 1 } }),
+      col.reports.find({ sessionId: id }, { projection: { evidence: 1 } }).toArray(),
+    ]);
+    const keys = [app?.cv?.key, ...reports.map((r) => r.evidence?.key)].filter(Boolean);
+    const failed = [];
+    for (const key of keys) {
+      try {
+        await storage.delete(key);
+      } catch (err) {
+        failed.push(key);
+        console.error(`Could not delete stored file ${key}:`, err.message);
+      }
+    }
+    await Promise.all([
+      col.reports.deleteMany({ sessionId: id }),
+      col.applications.deleteMany({ sessionId: id }),
+      col.demoState.deleteMany({ _id: id }),
+    ]);
+    await col.sessions.deleteOne({ _id: id });
+    res.json({ deleted: id, filesDeleted: keys.length - failed.length, filesFailed: failed.length });
+  });
 
   async function reevaluate(sessionId) {
     const s = await col.sessions.findOne({ _id: sessionId });

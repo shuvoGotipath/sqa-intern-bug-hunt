@@ -161,7 +161,7 @@ async function candidatesView() {
     </form>
     ${data.candidates.length
       ? `<div class="table-wrap"><table>
-      <thead><tr><th>Candidate</th><th>Stage</th><th>Status</th><th>Score</th><th>Bugs found</th><th>Reports</th><th>Hints</th><th>Time</th><th>Submitted</th></tr></thead>
+      <thead><tr><th>Candidate</th><th>Stage</th><th>Status</th><th>Score</th><th>Bugs found</th><th>Reports</th><th>Hints</th><th>Time</th><th>Submitted</th><th><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>${data.candidates
         .map(
           (c) => `<tr class="clickable" data-id="${esc(c.reference)}">
@@ -174,6 +174,7 @@ async function candidatesView() {
           <td>${c.hintsUsed}</td>
           <td>${c.minutesSpent !== null ? c.minutesSpent + ' min' : '—'}</td>
           <td>${esc(fmtDate(c.submittedAt))}</td>
+          <td><button class="btn btn-danger btn-sm" data-trash="${esc(c.reference)}" data-name="${esc(c.application?.fullName || c.reference)}" aria-label="Move ${esc(c.application?.fullName || c.reference)} to trash">Delete</button></td>
         </tr>`,
         )
         .join('')}</tbody></table></div>`
@@ -190,9 +191,96 @@ async function candidatesView() {
     filters = { q: '', stage: 'all', status: 'all', minScore: '', maxScore: '' };
     guarded(candidatesView);
   };
+  setTrashCount(data.stats.trashed);
   main.querySelectorAll('tr.clickable').forEach((tr) =>
     tr.addEventListener('click', (e) => {
-      if (!e.target.closest('a')) location.hash = '#/candidate/' + encodeURIComponent(tr.dataset.id);
+      if (!e.target.closest('a, button')) location.hash = '#/candidate/' + encodeURIComponent(tr.dataset.id);
+    }),
+  );
+  main.querySelectorAll('[data-trash]').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      if (await trashCandidate(btn.dataset.trash, btn.dataset.name)) guarded(candidatesView);
+    }),
+  );
+}
+
+// ------------------------------------------------------------- trash actions
+function setTrashCount(n) {
+  const el = document.getElementById('trash-count');
+  el.textContent = n || '';
+  el.hidden = !n;
+}
+
+async function trashCandidate(ref, name) {
+  if (!window.confirm(`Move ${name} to the trash?\n\nThey'll be hidden from the candidate list, stats and CSV export. You can restore them from the Trash page.`)) return false;
+  try {
+    await api(`/api/admin/candidates/${encodeURIComponent(ref)}/trash`, { method: 'POST' });
+    toast(`${name} moved to the trash.`, 'success');
+    return true;
+  } catch (err) {
+    toast(err.message, 'error');
+    return false;
+  }
+}
+
+async function restoreCandidate(ref, name) {
+  try {
+    await api(`/api/admin/candidates/${encodeURIComponent(ref)}/restore`, { method: 'POST' });
+    toast(`${name} restored.`, 'success');
+    return true;
+  } catch (err) {
+    toast(err.message, 'error');
+    return false;
+  }
+}
+
+async function deleteForever(ref, name) {
+  if (!window.confirm(`Permanently delete ${name}?\n\nThis removes their application, CV, bug reports and score for good. This cannot be undone.`)) return false;
+  try {
+    const r = await api(`/api/admin/candidates/${encodeURIComponent(ref)}`, { method: 'DELETE' });
+    toast(r.filesFailed ? `${name} deleted, but ${r.filesFailed} file(s) could not be removed from storage.` : `${name} permanently deleted.`, r.filesFailed ? 'error' : 'success');
+    return true;
+  } catch (err) {
+    toast(err.message, 'error');
+    return false;
+  }
+}
+
+async function trashView() {
+  loading();
+  const data = await api('/api/admin/candidates?trash=1');
+  setTrashCount(data.candidates.length);
+  main.innerHTML = `
+    <h1 tabindex="-1">Trash</h1>
+    <p class="muted">Deleted candidates stay here until you delete them permanently. Permanent deletion also removes their CV and screenshots from storage and cannot be undone.</p>
+    ${data.candidates.length
+      ? `<div class="table-wrap"><table>
+      <thead><tr><th>Candidate</th><th>Stage</th><th>Score</th><th>Moved to trash</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>${data.candidates
+        .map((c) => {
+          const name = c.application?.fullName || c.reference;
+          return `<tr>
+          <td><a href="#/candidate/${encodeURIComponent(c.reference)}"><strong>${esc(c.application?.fullName || 'No application')}</strong></a><br><span class="muted">${esc(c.application?.email || c.reference)}</span></td>
+          <td>${esc(STAGES[c.stage])}</td>
+          <td>${scoreCell(c.score)}</td>
+          <td>${esc(fmtDate(c.deletedAt))}</td>
+          <td><div class="row-actions">
+            <button class="btn btn-secondary btn-sm" data-restore="${esc(c.reference)}" data-name="${esc(name)}">↩ Restore</button>
+            <button class="btn btn-danger btn-sm" data-destroy="${esc(c.reference)}" data-name="${esc(name)}">Delete permanently</button>
+          </div></td>
+        </tr>`;
+        })
+        .join('')}</tbody></table></div>`
+      : '<div class="empty">The trash is empty.</div>'}`;
+  main.querySelector('h1').focus();
+  main.querySelectorAll('[data-restore]').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      if (await restoreCandidate(btn.dataset.restore, btn.dataset.name)) guarded(trashView);
+    }),
+  );
+  main.querySelectorAll('[data-destroy]').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      if (await deleteForever(btn.dataset.destroy, btn.dataset.name)) guarded(trashView);
     }),
   );
 }
@@ -225,16 +313,27 @@ function renderDetail(d) {
     falsePositivePenalty: 'False positives penalty',
     hintPenalty: 'Hint penalty',
   };
+  const displayName = a?.fullName || d.reference;
   main.innerHTML = `
-    <p><a href="#/candidates">← All candidates</a></p>
+    <p>${d.deletedAt ? '<a href="#/trash">← Trash</a>' : '<a href="#/candidates">← All candidates</a>'}</p>
+    ${d.deletedAt ? `<div class="alert alert-warning trash-banner" role="status">
+      <span><strong>This candidate is in the trash</strong> (moved ${esc(fmtDate(d.deletedAt))}). They're hidden from the candidate list, stats and export.</span>
+      <span class="row-actions">
+        <button class="btn btn-secondary btn-sm" id="detail-restore">↩ Restore</button>
+        <button class="btn btn-danger btn-sm" id="detail-destroy">Delete permanently</button>
+      </span>
+    </div>` : ''}
     <div class="detail-head">
       <div>
         <h1 tabindex="-1">${esc(a?.fullName || 'Candidate without application')}</h1>
         <div class="muted">Reference <strong>${esc(d.reference)}</strong> · ${esc(STAGES[d.stage])}</div>
       </div>
-      ${a ? `<div class="status-actions" role="group" aria-label="Application status">
-        ${Object.entries(STATUSES).map(([k, v]) => `<button class="btn btn-secondary btn-sm" data-status="${k}" aria-pressed="${a.status === k}">${v}</button>`).join('')}
-      </div>` : ''}
+      <div class="status-actions">
+        ${a && !d.deletedAt ? `<span class="status-actions" role="group" aria-label="Application status">
+          ${Object.entries(STATUSES).map(([k, v]) => `<button class="btn btn-secondary btn-sm" data-status="${k}" aria-pressed="${a.status === k}">${v}</button>`).join('')}
+        </span>` : ''}
+        ${d.deletedAt ? '' : '<button class="btn btn-danger btn-sm" id="detail-trash">Delete</button>'}
+      </div>
     </div>
 
     <div class="detail-grid">
@@ -316,6 +415,15 @@ function renderDetail(d) {
       .join('') : '<div class="empty">No reports yet.</div>'}`;
 
   main.querySelector('h1').focus();
+  document.getElementById('detail-trash')?.addEventListener('click', async () => {
+    if (await trashCandidate(d.reference, displayName)) location.hash = '#/candidates';
+  });
+  document.getElementById('detail-restore')?.addEventListener('click', async () => {
+    if (await restoreCandidate(d.reference, displayName)) guarded(() => detailView(d.reference));
+  });
+  document.getElementById('detail-destroy')?.addEventListener('click', async () => {
+    if (await deleteForever(d.reference, displayName)) location.hash = '#/trash';
+  });
   document.getElementById('cv-preview')?.addEventListener('click', () => openCvPreview(a.cv));
   main.querySelectorAll('[data-status]').forEach((btn) =>
     btn.addEventListener('click', async () => {
@@ -436,6 +544,7 @@ async function route() {
   const hash = location.hash.slice(2) || 'candidates';
   const [page, id] = hash.split('/');
   nav.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === (page === 'candidate' ? 'candidates' : page)));
+  if (page === 'trash') return guarded(trashView);
   if (page === 'candidate' && id) return guarded(() => detailView(decodeURIComponent(id)));
   if (page === 'answer-key') return guarded(answerKeyView);
   return guarded(candidatesView);

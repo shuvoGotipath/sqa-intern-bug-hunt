@@ -19,7 +19,8 @@ export function loadCandidate(col) {
   return async (req, res, next) => {
     try {
       const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-      req.candidate = token ? await col.sessions.findOne({ tokenHash: hashToken(token) }) : null;
+      // Trashed candidates are treated as signed out; they reappear if an admin restores them.
+      req.candidate = token ? await col.sessions.findOne({ tokenHash: hashToken(token), deletedAt: null }) : null;
       next();
     } catch (err) {
       next(err);
