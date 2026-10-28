@@ -7,6 +7,7 @@ import { BUGS, BUG_BY_ID, SCORING, DIFFICULTY_POINTS, MODULES } from '../evaluat
 import { HINTS } from '../evaluation/hints.js';
 import { evaluate, maxScore, bugPoints } from '../evaluation/scoring.js';
 import { forScoring } from './candidate.js';
+import { getHiring, setHiring } from '../settings.js';
 
 export const ADMIN_COOKIE = 'sqa_admin';
 const ADMIN_TTL_MS = 8 * 3600 * 1000;
@@ -186,6 +187,13 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
     if (!report) throw new HttpError(404, 'Report not found.');
     await reevaluate(report.sessionId);
     res.json(await candidateDetail(report.sessionId));
+  });
+
+  router.get('/settings', async (req, res) => res.json({ hiring: await getHiring(col) }));
+
+  router.put('/settings', async (req, res) => {
+    const { applicationsOpen, closedMessage } = req.body || {};
+    res.json({ hiring: await setHiring(col, { applicationsOpen, closedMessage }) });
   });
 
   router.get('/answer-key', (req, res) => {

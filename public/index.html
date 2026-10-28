@@ -35,14 +35,22 @@
       <div class="alert alert-error" role="alert"><strong>We couldn't load the challenge.</strong> <span data-msg></span> <button class="btn btn-sm btn-secondary" data-retry>Retry</button></div>
     </div>
 
+    <div id="closed-banner" class="container closed-banner" hidden>
+      <div class="alert alert-warning" role="status">
+        <strong>Applications are closed.</strong> <span data-msg></span>
+        <span data-progress hidden>Your progress is saved — you can continue when applications reopen.</span>
+      </div>
+    </div>
+
     <!-- 1. Welcome -->
     <section id="screen-welcome" class="screen container" hidden aria-labelledby="welcome-title">
       <div class="hero">
-        <p class="eyebrow">We're hiring · SQA Intern</p>
+        <p class="eyebrow" id="welcome-eyebrow">We're hiring · SQA Intern</p>
         <h1 id="welcome-title" tabindex="-1">Think like a tester. <span class="accent">Find the bugs.</span></h1>
         <p class="lead">Instead of a long application form, we'd like to see how you test. You'll get a small online store called <strong>ShopNest</strong> that contains planted defects. Explore it, find issues and report them like a QA engineer. Submitting your findings unlocks the application form.</p>
         <div class="hero-actions">
-          <button class="btn btn-primary" data-go="rules">Read the rules &amp; start</button>
+          <button class="btn btn-primary" data-go="rules" id="welcome-start">Read the rules &amp; start</button>
+          <p class="closed-note" id="welcome-closed" hidden>We're not accepting new applications right now.</p>
         </div>
         <ul class="facts" aria-label="Challenge facts">
           <li><strong>~45–60 min</strong><span>suggested time, no hard limit</span></li>
@@ -83,7 +91,7 @@
           <div class="error" id="start-error" role="alert" hidden></div>
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" data-go="welcome">Back</button>
-            <button type="submit" class="btn btn-primary">Start challenge</button>
+            <button type="submit" class="btn btn-primary" id="start-challenge">Start challenge</button>
           </div>
         </form>
       </div>

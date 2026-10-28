@@ -113,3 +113,7 @@ dialog.small { width: min(440px, calc(100vw - 32px)); }
 
 .done { text-align: center; padding: 40px 24px; }
 .done-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--success-soft); color: var(--success); font-size: 34px; display: grid; place-items: center; margin: 0 auto 16px; font-weight: 700; }
+
+.closed-banner { padding-top: 16px; }
+.closed-banner .alert { margin-bottom: 0; text-align: center; }
+.closed-note { color: var(--warning); font-weight: 600; margin: 0; }

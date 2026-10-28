@@ -5,6 +5,7 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 const state = {
   session: null,
+  hiring: { open: true, message: '' },
   options: null,
   clockOffset: 0,
   timer: null,
@@ -34,6 +35,7 @@ function show(name, { focus = true } = {}) {
   if (name === 'review') renderReview();
   if (name === 'apply') enterApply();
   if (name === 'done' && state.session && !$('#done-ref').textContent) $('#done-ref').textContent = state.session.reference;
+  applyHiringState(name);
   if (focus) {
     window.scrollTo(0, 0);
     const heading = $(`#screen-${name} h1`);
@@ -49,9 +51,40 @@ function routeFromSession() {
   return show('done', { focus: false });
 }
 
+// ---------------------------------------------------------------- hiring open/closed
+let currentScreen = null;
+
+/** Reflects the admin's "applications open" switch. The server enforces it too. */
+function applyHiringState(name = currentScreen) {
+  currentScreen = name;
+  const closed = !state.hiring.open;
+  const status = state.session?.status;
+  const banner = $('#closed-banner');
+  banner.hidden = !closed || name === 'done' || !name;
+  $('[data-msg]', banner).textContent = state.hiring.message;
+  $('[data-progress]', banner).hidden = !(status === 'in_progress' || status === 'submitted');
+  $('#welcome-start').hidden = closed;
+  $('#welcome-closed').hidden = !closed;
+  $('#welcome-eyebrow').textContent = closed ? 'Applications closed · SQA Intern' : "We're hiring · SQA Intern";
+  for (const id of ['#start-challenge', '#submit-challenge', '#apply-submit']) {
+    const btn = $(id);
+    if (btn.querySelector('.spinner')) continue; // a request is in flight
+    btn.disabled = closed || (id === '#submit-challenge' && !(state.session?.reports.length > 0));
+    btn.title = closed ? 'Applications are currently closed' : '';
+  }
+}
+
+function handleHiringClosed(err) {
+  if (err?.details?.hiring !== 'closed') return false;
+  state.hiring = { open: false, message: err.message };
+  applyHiringState();
+  return true;
+}
+
 async function loadSession() {
   const data = await api('/api/session');
   state.options = data.options;
+  state.hiring = data.hiring || { open: true, message: '' };
   state.session = data.status === 'none' ? null : data;
   if (data.serverTime) state.clockOffset = Date.parse(data.serverTime) - Date.now();
   return data;
@@ -136,6 +169,7 @@ $('#start-form').addEventListener('submit', async (e) => {
   try {
     const data = await api('/api/session/start', { method: 'POST', body: { acceptedRules: true } });
     state.session = data;
+    state.hiring = data.hiring || state.hiring;
     state.clockOffset = Date.parse(data.serverTime) - Date.now();
     storage.remove('sqa_ui_anon');
     show('workspace');
@@ -143,8 +177,10 @@ $('#start-form').addEventListener('submit', async (e) => {
   } catch (ex) {
     err.textContent = ex.message;
     err.hidden = false;
+    handleHiringClosed(ex);
   } finally {
     setBusy(btn, false);
+    applyHiringState();
   }
 });
 
@@ -476,7 +512,7 @@ function renderReview() {
         )
         .join('')
     : '<div class="empty">No reports to review.</div>';
-  $('#submit-challenge').disabled = reports.length === 0;
+  applyHiringState();
 }
 
 $('#submit-form').addEventListener('submit', async (e) => {
@@ -507,9 +543,11 @@ $('#submit-form').addEventListener('submit', async (e) => {
   } catch (ex) {
     err.textContent = ex.message;
     err.hidden = false;
+    handleHiringClosed(ex);
     if (ex.status === 409) boot();
   } finally {
     setBusy(btn, false);
+    applyHiringState();
   }
 });
 
@@ -584,11 +622,15 @@ $('#apply-form').addEventListener('submit', async (e) => {
   } catch (err) {
     errBox.textContent = err.message;
     errBox.hidden = false;
-    if (err.details && Object.keys(err.details).length) showFieldErrors(form, err.details)?.focus();
-    else errBox.scrollIntoView({ block: 'center' });
-    if (err.status === 403 || (err.status === 409 && !err.details?.email)) boot();
+    if (handleHiringClosed(err)) errBox.scrollIntoView({ block: 'center' });
+    else {
+      if (err.details && Object.keys(err.details).length) showFieldErrors(form, err.details)?.focus();
+      else errBox.scrollIntoView({ block: 'center' });
+      if (err.status === 403 || (err.status === 409 && !err.details?.email)) boot();
+    }
   } finally {
     setBusy(btn, false);
+    applyHiringState();
   }
 });
 

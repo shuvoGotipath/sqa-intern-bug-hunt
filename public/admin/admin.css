@@ -63,3 +63,12 @@ dl.kv dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .cv-frame-wrap .loading { position: absolute; inset: 0; }
 #cv-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 @media (max-width: 560px) { #cv-open-tab { display: none; } }
+
+.hiring-card { margin-bottom: 16px; border-left: 4px solid var(--success); }
+.hiring-card.is-closed { border-left-color: var(--danger); background: #fffafa; }
+.hiring-card h2 { font-size: 16px; margin: 0 0 6px; }
+.hiring-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.hiring-status { margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hiring-updated { font-size: 13px; margin: 6px 0 0; }
+.hiring-msg { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.hiring-msg .field { margin-bottom: 8px; }

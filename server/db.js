@@ -7,6 +7,7 @@ import { MongoClient } from 'mongodb';
  *   applications   job applications (sessionId unique, email unique)
  *   adminSessions  admin logins (_id = token hash, TTL on expiresAt)
  *   demoState      ShopNest sandbox state per session (_id = sessionId)
+ *   settings       admin-controlled settings (_id = 'hiring')
  */
 export async function openDatabase(uri, dbName) {
   const client = new MongoClient(uri, { serverSelectionTimeoutMS: 15000 });
@@ -18,6 +19,7 @@ export async function openDatabase(uri, dbName) {
     applications: db.collection('applications'),
     adminSessions: db.collection('adminSessions'),
     demoState: db.collection('demoState'),
+    settings: db.collection('settings'),
   };
   await Promise.all([
     col.sessions.createIndex({ tokenHash: 1 }, { unique: true }),

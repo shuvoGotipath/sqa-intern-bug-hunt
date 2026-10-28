@@ -79,13 +79,67 @@ function queryString() {
   return p.toString();
 }
 
+// ------------------------------------------------------------- hiring switch
+function renderHiringCard(h) {
+  const box = document.getElementById('hiring-card');
+  if (!box) return;
+  box.className = `card hiring-card ${h.open ? 'is-open' : 'is-closed'}`;
+  box.innerHTML = `
+    <div class="hiring-row">
+      <div>
+        <h2>Applications</h2>
+        <p class="hiring-status">${h.open
+          ? '<span class="badge badge-success">● Open</span> Candidates can start the challenge and apply.'
+          : '<span class="badge badge-danger">● Closed</span> New candidates can’t start, and nobody can submit the challenge or apply. Saved progress is kept.'}</p>
+        ${h.updatedAt ? `<p class="muted hiring-updated">Last changed ${esc(fmtDate(h.updatedAt))}</p>` : ''}
+      </div>
+      <button class="btn ${h.open ? 'btn-danger' : 'btn-primary'}" id="hiring-toggle">${h.open ? 'Close applications' : 'Reopen applications'}</button>
+    </div>
+    <form id="hiring-msg-form" class="hiring-msg">
+      <div class="field">
+        <label for="hiring-msg">Message shown to candidates while closed <span class="muted">(optional)</span></label>
+        <textarea id="hiring-msg" name="closedMessage" rows="2" maxlength="300" placeholder="Applications for the SQA Intern role are currently closed. Please check back later.">${esc(h.customMessage)}</textarea>
+      </div>
+      <button class="btn btn-secondary btn-sm" type="submit">Save message</button>
+    </form>`;
+
+  document.getElementById('hiring-toggle').addEventListener('click', async (e) => {
+    const closing = h.open;
+    const question = closing
+      ? 'Close applications? New candidates won’t be able to start the challenge, and nobody will be able to submit the challenge or an application until you reopen.'
+      : 'Reopen applications? Candidates will be able to start the challenge and apply again.';
+    if (!window.confirm(question)) return;
+    setBusy(e.currentTarget, true, closing ? 'Closing…' : 'Reopening…');
+    try {
+      const msg = document.getElementById('hiring-msg').value;
+      const { hiring } = await api('/api/admin/settings', { method: 'PUT', body: { applicationsOpen: !closing, closedMessage: msg } });
+      renderHiringCard(hiring);
+      toast(closing ? 'Applications are now closed.' : 'Applications are open again.', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+      setBusy(e.currentTarget, false);
+    }
+  });
+  document.getElementById('hiring-msg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const { hiring } = await api('/api/admin/settings', { method: 'PUT', body: { closedMessage: e.target.closedMessage.value } });
+      renderHiringCard(hiring);
+      toast('Message saved.', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+}
+
 async function candidatesView() {
   loading();
-  const data = await api('/api/admin/candidates?' + queryString());
+  const [data, settings] = await Promise.all([api('/api/admin/candidates?' + queryString()), api('/api/admin/settings')]);
   const st = data.stats;
   const started = Object.values(st.stages).reduce((a, b) => a + b, 0);
   main.innerHTML = `
     <h1>Candidates</h1>
+    <section id="hiring-card" aria-label="Application intake"></section>
     <div class="stats">
       <div class="card"><strong>${started}</strong><span>Challenges started</span></div>
       <div class="card"><strong>${(st.stages.submitted || 0) + (st.stages.applied || 0)}</strong><span>Challenges submitted</span></div>
@@ -125,6 +179,7 @@ async function candidatesView() {
         .join('')}</tbody></table></div>`
       : '<div class="empty">No candidates match these filters yet.</div>'}`;
 
+  renderHiringCard(settings.hiring);
   const form = document.getElementById('filters');
   form.addEventListener('submit', (e) => {
     e.preventDefault();

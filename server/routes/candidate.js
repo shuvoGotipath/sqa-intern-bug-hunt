@@ -4,6 +4,7 @@ import { isDuplicateKey } from '../db.js';
 import { validateReport, validateApplication, EDUCATION_LEVELS } from '../validation.js';
 import { makeUploader, handleUpload, checkEvidence, checkCv, storeFile, removeStored, ALLOWED, CV_MAX_BYTES, EVIDENCE_MAX_BYTES } from '../uploads.js';
 import { sendStored } from '../storage.js';
+import { getHiring, requireHiringOpen } from '../settings.js';
 import { MODULES, SEVERITIES, PRIORITIES } from '../evaluation/answerKey.js';
 import { HINTS } from '../evaluation/hints.js';
 import { evaluate } from '../evaluation/scoring.js';
@@ -60,6 +61,12 @@ export function candidateRouter({ col, storage, secureCookies, limits }) {
   const evidenceUpload = handleUpload(makeUploader(EVIDENCE_MAX_BYTES).single('evidence'), 'Evidence image', EVIDENCE_MAX_BYTES);
   const cvUpload = handleUpload(makeUploader(CV_MAX_BYTES).single('cv'), 'CV', CV_MAX_BYTES);
 
+  const hiringOpen = requireHiringOpen(col);
+  const publicHiring = async () => {
+    const h = await getHiring(col);
+    return { open: h.open, message: h.message };
+  };
+
   const listReports = (sessionId) => col.reports.find({ sessionId }).sort({ createdAt: 1, _id: 1 }).toArray();
   const findReport = (id, sessionId) => col.reports.findOne({ _id: String(id), sessionId });
 
@@ -76,17 +83,20 @@ export function candidateRouter({ col, storage, secureCookies, limits }) {
       hints: HINTS.slice(0, s.hintsUsed),
       reports: (await listReports(s._id)).map(publicReport),
       application: app ? { submittedAt: app.createdAt } : null,
+      hiring: await publicHiring(),
       options: OPTIONS,
     };
   }
 
   router.get('/session', async (req, res) => {
-    if (!req.candidate) return res.json({ status: 'none', options: OPTIONS });
+    if (!req.candidate) return res.json({ status: 'none', hiring: await publicHiring(), options: OPTIONS });
     res.json(await sessionPayload(req.candidate));
   });
 
   router.post('/session/start', rateLimit({ windowMs: 60 * 60 * 1000, max: limits.sessionStart }), async (req, res) => {
     if (req.candidate) return res.json(await sessionPayload(req.candidate));
+    const hiring = await getHiring(col);
+    if (!hiring.open) throw new HttpError(403, hiring.message, { hiring: 'closed' });
     if (req.body?.acceptedRules !== true) throw new HttpError(422, 'Please confirm that you have read the challenge rules.');
     const token = newToken();
     const session = {
@@ -169,7 +179,7 @@ export function candidateRouter({ col, storage, secureCookies, limits }) {
     if (!(await sendStored(storage, r.evidence.key, res))) throw new HttpError(404, 'Evidence file is missing.');
   });
 
-  router.post('/challenge/submit', requireCandidate, requireInProgress, async (req, res) => {
+  router.post('/challenge/submit', requireCandidate, requireInProgress, hiringOpen, async (req, res) => {
     if (req.body?.confirm !== true) throw new HttpError(422, 'Please confirm that you want to submit your findings.');
     const s = req.candidate;
     const reports = await listReports(s._id);
@@ -185,7 +195,7 @@ export function candidateRouter({ col, storage, secureCookies, limits }) {
     res.json({ status: 'submitted', submittedAt, reportsSubmitted: reports.length });
   });
 
-  router.post('/application', requireCandidate, rateLimit({ windowMs: 15 * 60 * 1000, max: limits.application }), cvUpload, async (req, res) => {
+  router.post('/application', requireCandidate, rateLimit({ windowMs: 15 * 60 * 1000, max: limits.application }), hiringOpen, cvUpload, async (req, res) => {
     const s = req.candidate;
     if (s.status === 'in_progress') throw new HttpError(403, 'Complete and submit the testing challenge before applying.');
     if (s.status === 'applied') throw new HttpError(409, 'You have already submitted your application.');
