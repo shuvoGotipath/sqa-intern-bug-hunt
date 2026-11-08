@@ -99,7 +99,11 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
     let rows = sessions.map((s) => summarize(s, appBySession.get(s._id), counts[s._id] || 0));
     const sortKey = (r) => String((inTrash && r.deletedAt) || r.application?.appliedAt || r.submittedAt || r.startedAt);
     rows.sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
-    const { stage, status, minScore, maxScore: maxS, q } = query;
+    const { stage, status, minScore, maxScore: maxS, q, ids } = query;
+    if (ids) {
+      const wanted = new Set(String(ids).split(',').filter(Boolean));
+      rows = rows.filter((r) => wanted.has(r.reference));
+    }
     if (stage && stage !== 'all') rows = rows.filter((r) => r.stage === stage);
     if (status && status !== 'all') rows = rows.filter((r) => r.application?.status === status);
     if (minScore !== undefined && minScore !== '') rows = rows.filter((r) => r.score !== null && r.score >= Number(minScore));
@@ -157,6 +161,32 @@ export function adminRouter({ col, storage, adminUser, adminPassword, secureCook
   }
 
   router.get('/candidates/:id', async (req, res) => res.json(await candidateDetail(req.params.id)));
+
+  // ---------- Bulk actions ----------
+  const MAX_BULK = 500;
+  router.post('/candidates/bulk', async (req, res) => {
+    const { ids, action, status } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_BULK || !ids.every((id) => typeof id === 'string' && id.length <= 64)) {
+      throw new HttpError(422, `Select between 1 and ${MAX_BULK} candidates.`);
+    }
+    const unique = [...new Set(ids)];
+    if (action === 'status') {
+      if (!APP_STATUSES.includes(status)) throw new HttpError(422, 'Status must be under_review, shortlisted or rejected.');
+      const result = await col.applications.updateMany(
+        { sessionId: { $in: unique }, deletedAt: null },
+        { $set: { status, updatedAt: new Date().toISOString() } },
+      );
+      // Candidates who haven't applied yet have no application status to change.
+      return res.json({ action, status, updated: result.matchedCount, skipped: unique.length - result.matchedCount });
+    }
+    if (action === 'trash') {
+      const deletedAt = new Date().toISOString();
+      const result = await col.sessions.updateMany({ _id: { $in: unique }, deletedAt: null }, { $set: { deletedAt } });
+      await col.applications.updateMany({ sessionId: { $in: unique }, deletedAt: null }, { $set: { deletedAt } });
+      return res.json({ action, updated: result.matchedCount, skipped: unique.length - result.matchedCount });
+    }
+    throw new HttpError(422, 'Unknown bulk action.');
+  });
 
   // ---------- Trash ----------
   // Moving to trash hides the candidate everywhere (list, stats, export) but keeps all data.

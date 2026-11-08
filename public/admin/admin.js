@@ -159,12 +159,23 @@ async function candidatesView() {
       <button class="btn btn-secondary" type="button" id="f-reset">Reset</button>
       <a class="btn btn-secondary" href="/api/admin/export.csv?${esc(queryString())}" download>⬇ Export CSV</a>
     </form>
+    <div class="bulk-bar" id="bulk-bar" role="region" aria-label="Bulk actions" hidden>
+      <strong id="bulk-count" aria-live="polite"></strong>
+      <span class="bulk-group" role="group" aria-label="Change application status">
+        <span class="muted">Mark as</span>
+        ${Object.entries(STATUSES).map(([k, v]) => `<button type="button" class="btn btn-secondary btn-sm" data-bulk-status="${k}">${v}</button>`).join('')}
+      </span>
+      <a class="btn btn-secondary btn-sm" id="bulk-export" download>⬇ Export selected</a>
+      <button type="button" class="btn btn-danger btn-sm" id="bulk-trash">Move to trash</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="bulk-clear">Clear selection</button>
+    </div>
     ${data.candidates.length
       ? `<div class="table-wrap"><table>
-      <thead><tr><th>Candidate</th><th>Stage</th><th>Status</th><th>Score</th><th>Bugs found</th><th>Reports</th><th>Hints</th><th>Time</th><th>Submitted</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <thead><tr><th class="select-col"><input type="checkbox" id="select-all" aria-label="Select all candidates in this list"></th><th>Candidate</th><th>Stage</th><th>Status</th><th>Score</th><th>Bugs found</th><th>Reports</th><th>Hints</th><th>Time</th><th>Submitted</th><th><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>${data.candidates
         .map(
           (c) => `<tr class="clickable" data-id="${esc(c.reference)}">
+          <td class="select-col"><input type="checkbox" class="row-select" value="${esc(c.reference)}" ${selected.has(c.reference) ? 'checked' : ''} aria-label="Select ${esc(c.application?.fullName || c.reference)}"></td>
           <td><a href="#/candidate/${encodeURIComponent(c.reference)}"><strong>${esc(c.application?.fullName || 'No application yet')}</strong></a><br><span class="muted">${esc(c.application?.email || c.reference)}</span></td>
           <td>${esc(STAGES[c.stage])}</td>
           <td>${c.application ? `<span class="badge ${STATUS_BADGE[c.application.status]}">${esc(STATUSES[c.application.status])}</span>` : '<span class="muted">—</span>'}</td>
@@ -192,9 +203,13 @@ async function candidatesView() {
     guarded(candidatesView);
   };
   setTrashCount(data.stats.trashed);
+  // Keep only selections that are still visible after filtering.
+  const visible = new Set(data.candidates.map((c) => c.reference));
+  for (const ref of [...selected]) if (!visible.has(ref)) selected.delete(ref);
+  setupBulkActions(data.candidates);
   main.querySelectorAll('tr.clickable').forEach((tr) =>
     tr.addEventListener('click', (e) => {
-      if (!e.target.closest('a, button')) location.hash = '#/candidate/' + encodeURIComponent(tr.dataset.id);
+      if (!e.target.closest('a, button, input, .select-col')) location.hash = '#/candidate/' + encodeURIComponent(tr.dataset.id);
     }),
   );
   main.querySelectorAll('[data-trash]').forEach((btn) =>
@@ -202,6 +217,73 @@ async function candidatesView() {
       if (await trashCandidate(btn.dataset.trash, btn.dataset.name)) guarded(candidatesView);
     }),
   );
+}
+
+// ------------------------------------------------------------- bulk actions
+const selected = new Set();
+
+function setupBulkActions(candidates) {
+  const all = document.getElementById('select-all');
+  const boxes = [...main.querySelectorAll('.row-select')];
+  const nameOf = Object.fromEntries(candidates.map((c) => [c.reference, c.application?.fullName || c.reference]));
+
+  const sync = () => {
+    const n = selected.size;
+    document.getElementById('bulk-bar').hidden = n === 0;
+    document.getElementById('bulk-count').textContent = `${n} selected`;
+    document.getElementById('bulk-export').href = `/api/admin/export.csv?ids=${encodeURIComponent([...selected].join(','))}`;
+    boxes.forEach((b) => b.closest('tr').classList.toggle('is-selected', b.checked));
+    if (all) {
+      all.checked = n > 0 && n === boxes.length;
+      all.indeterminate = n > 0 && n < boxes.length;
+    }
+  };
+
+  boxes.forEach((b) =>
+    b.addEventListener('change', () => {
+      b.checked ? selected.add(b.value) : selected.delete(b.value);
+      sync();
+    }),
+  );
+  all?.addEventListener('change', () => {
+    boxes.forEach((b) => {
+      b.checked = all.checked;
+      all.checked ? selected.add(b.value) : selected.delete(b.value);
+    });
+    sync();
+  });
+  document.getElementById('bulk-clear').addEventListener('click', () => {
+    selected.clear();
+    boxes.forEach((b) => (b.checked = false));
+    sync();
+  });
+
+  const runBulk = async (btn, body, confirmText, busyLabel) => {
+    const ids = [...selected];
+    if (confirmText && !window.confirm(confirmText(ids.length))) return;
+    setBusy(btn, true, busyLabel);
+    try {
+      const r = await api('/api/admin/candidates/bulk', { method: 'POST', body: { ids, ...body } });
+      const what = body.action === 'trash' ? 'moved to the trash' : `marked as ${STATUSES[body.status]}`;
+      toast(`${r.updated} candidate(s) ${what}.${r.skipped ? ` ${r.skipped} skipped${body.action === 'status' ? ' (no application yet)' : ''}.` : ''}`, 'success');
+      if (body.action === 'trash') selected.clear();
+      guarded(candidatesView);
+    } catch (err) {
+      toast(err.message, 'error');
+      setBusy(btn, false);
+    }
+  };
+
+  main.querySelectorAll('[data-bulk-status]').forEach((btn) =>
+    btn.addEventListener('click', () =>
+      runBulk(btn, { action: 'status', status: btn.dataset.bulkStatus }, (n) => `Mark ${n} selected candidate(s) as ${STATUSES[btn.dataset.bulkStatus]}?`, 'Updating…'),
+    ),
+  );
+  document.getElementById('bulk-trash').addEventListener('click', (e) => {
+    const names = [...selected].slice(0, 5).map((r) => nameOf[r]).join(', ') + (selected.size > 5 ? ` and ${selected.size - 5} more` : '');
+    runBulk(e.currentTarget, { action: 'trash' }, (n) => `Move ${n} candidate(s) to the trash?\n\n${names}\n\nYou can restore them from the Trash page.`, 'Moving…');
+  });
+  sync();
 }
 
 // ------------------------------------------------------------- trash actions

@@ -77,3 +77,10 @@ dl.kv dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .row-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .trash-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 h1[tabindex] { outline: none; }
+
+.select-col { width: 40px; }
+.select-col input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; vertical-align: middle; }
+tr.is-selected td { background: var(--primary-soft); }
+.bulk-bar { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--primary); border-radius: var(--radius); box-shadow: var(--shadow); }
+.bulk-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bulk-bar #bulk-trash { margin-left: auto; }
